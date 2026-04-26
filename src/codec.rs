@@ -303,13 +303,14 @@ pub fn certificate_to_safe_bag(
 ) -> Result<SafeBag> {
     let mut bag_attributes = Attributes::new();
 
-    let friendly_name =
-        SetOfVec::<AttributeValue>::from_iter([Any::from_der(&BmpString::from_utf8(friendly_name)?.to_der()?)?])?;
+    if let Some(v) = friendly_name_any_lossy(friendly_name) {
+        let friendly_name = SetOfVec::<AttributeValue>::from_iter([v])?;
 
-    bag_attributes.insert(Attribute {
-        oid: oid::FRIENDLY_NAME_OID,
-        values: friendly_name,
-    })?;
+        bag_attributes.insert(Attribute {
+            oid: oid::FRIENDLY_NAME_OID,
+            values: friendly_name,
+        })?;
+    }
 
     if let Some(local_key_id) = local_key_id {
         let local_key_id =
@@ -382,13 +383,14 @@ pub fn secret_to_safe_bag(
     password: &str,
 ) -> Result<SafeBag> {
     let mut bag_attributes = Attributes::new();
-    let friendly_name =
-        SetOfVec::<AttributeValue>::from_iter([Any::from_der(&BmpString::from_utf8(friendly_name)?.to_der()?)?])?;
+    if let Some(v) = friendly_name_any_lossy(friendly_name) {
+        let friendly_name = SetOfVec::<AttributeValue>::from_iter([v])?;
 
-    bag_attributes.insert(Attribute {
-        oid: oid::FRIENDLY_NAME_OID,
-        values: friendly_name,
-    })?;
+        bag_attributes.insert(Attribute {
+            oid: oid::FRIENDLY_NAME_OID,
+            values: friendly_name,
+        })?;
+    }
 
     let local_key_id = SetOfVec::<AttributeValue>::from_iter([Any::from_der(
         &OctetStringRef::new(key.local_key_id.as_ref())?.to_der()?,
@@ -446,13 +448,14 @@ pub fn private_key_to_safe_bag(
 ) -> Result<SafeBag> {
     let mut bag_attributes = Attributes::new();
 
-    let friendly_name =
-        SetOfVec::<AttributeValue>::from_iter([Any::from_der(&BmpString::from_utf8(friendly_name)?.to_der()?)?])?;
+    if let Some(v) = friendly_name_any_lossy(friendly_name) {
+        let friendly_name = SetOfVec::<AttributeValue>::from_iter([v])?;
 
-    bag_attributes.insert(Attribute {
-        oid: oid::FRIENDLY_NAME_OID,
-        values: friendly_name,
-    })?;
+        bag_attributes.insert(Attribute {
+            oid: oid::FRIENDLY_NAME_OID,
+            values: friendly_name,
+        })?;
+    }
 
     let local_key_id = SetOfVec::<AttributeValue>::from_iter([Any::from_der(
         &OctetStringRef::new(key.local_key_id.as_ref())?.to_der()?,
@@ -548,6 +551,28 @@ pub fn compute_mac(data: &[u8], algorithm: MacAlgorithm, iterations: i32, passwo
         mac_salt: OctetString::new(salt)?,
         iterations: iterations as _,
     })
+}
+
+fn friendly_name_any_lossy(name: &str) -> Option<Any> {
+    fn to_any_bmp(s: &str) -> Option<Any> {
+        let der = BmpString::from_utf8(s).ok()?.to_der().ok()?;
+        Any::from_der(&der).ok()
+    }
+
+    if let Some(any) = to_any_bmp(name) {
+        return Some(any);
+    }
+
+    let sanitized: String = name
+        .chars()
+        .map(|c| if (c as u32) <= 0xFFFF { c } else { '?' })
+        .collect();
+
+    if sanitized.is_empty() {
+        return None;
+    }
+
+    to_any_bmp(&sanitized)
 }
 
 #[cfg(test)]

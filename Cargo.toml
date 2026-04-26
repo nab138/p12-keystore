@@ -1,5 +1,5 @@
 [package]
-name = "p12-keystore"
+name = "isideload-p12-keystore"
 description = "Convenient API to work with PKCS#12 files"
 version = "0.3.0-rc4"
 authors = ["Dmitry Pankratov <dmitry@pankratov.net>"]
